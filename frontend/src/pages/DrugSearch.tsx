@@ -49,149 +49,190 @@ export default function DrugSearch() {
     }
   };
 
+  const hasResults = brand || generics.length > 0;
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-20">
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Search bar container - moved to top of DOM */}
+      <div className="fixed top-0 left-0 w-full z-50">
+        <motion.div
+          initial={{ y: 0 }}
+          animate={{ y: 0 }}
+          className="px-4 py-4 bg-gray-900/50 backdrop-blur-sm"
+        >
+          <div className="max-w-4xl mx-auto">
+            <div className="relative">
+              <input
+                className="w-full p-4 pl-12 rounded-xl bg-gray-800/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500/20 transition-all"
+                type="text"
+                placeholder="Enter a brand drug (e.g. Dramamine)"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyPress={handleKeyPress}
+              />
+              <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={fetchDrugInfo}
+                disabled={loading}
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg transition-colors"
+              >
+                {loading ? <FiLoader className="animate-spin" /> : "Search"}
+              </motion.button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Animated background elements */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-12 text-center"
+        className="absolute inset-0 bg-gradient-to-b from-gray-900 to-black"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1 }}
+        style={{ zIndex: 0 }}
       >
-        <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-500 text-transparent bg-clip-text">
-          Find Affordable Alternatives
-        </h1>
-        <p className="text-gray-400 text-lg">
-          Search for your medication to find generic alternatives and save money
-        </p>
+        <motion.div
+          className="absolute top-0 left-0 w-full h-full"
+          initial={{ backgroundPosition: "0% 0%" }}
+          animate={{ backgroundPosition: "100% 100%" }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            repeatType: "reverse",
+            ease: "linear"
+          }}
+          style={{
+            backgroundImage: "radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 50%)",
+            backgroundSize: "200% 200%"
+          }}
+        />
+        <motion.div
+          className="absolute top-0 left-0 w-full h-full"
+          initial={{ opacity: 0.5 }}
+          animate={{ opacity: 0.8 }}
+          transition={{
+            duration: 3,
+            repeat: Infinity,
+            repeatType: "reverse",
+            ease: "easeInOut"
+          }}
+          style={{
+            backgroundImage: "radial-gradient(circle at 30% 30%, rgba(139, 92, 246, 0.1) 0%, transparent 50%)",
+            backgroundSize: "200% 200%"
+          }}
+        />
       </motion.div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="max-w-2xl mx-auto mb-12"
-      >
-        <div className="relative">
-          <input
-            className="w-full p-4 pl-12 rounded-xl bg-gray-800 border border-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-            type="text"
-            placeholder="Enter a brand drug (e.g. Dramamine)"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyPress={handleKeyPress}
-          />
-          <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={fetchDrugInfo}
-            disabled={loading}
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg transition-colors"
-          >
-            {loading ? <FiLoader className="animate-spin" /> : "Search"}
-          </motion.button>
-        </div>
-      </motion.div>
-
+      {/* Error message */}
       <AnimatePresence>
         {error && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="max-w-2xl mx-auto mb-8 p-4 bg-red-900/50 border border-red-800 rounded-xl flex items-center"
+            className="fixed top-24 left-0 w-full px-4 z-40"
           >
-            <FiAlertCircle className="text-red-400 mr-3" />
-            <p className="text-red-400">{error}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {brand && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="max-w-2xl mx-auto mb-12 p-6 bg-gray-800/50 rounded-xl border border-gray-700"
-          >
-            <h2 className="text-2xl font-bold mb-4">{brand.name}</h2>
-            <p className="text-gray-300 mb-4">{brand.description}</p>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="bg-gray-900/50 p-3 rounded-lg">
-                <span className="text-gray-400">Dosage</span>
-                <p className="font-medium">{brand.dosage}</p>
-              </div>
-              <div className="bg-gray-900/50 p-3 rounded-lg">
-                <span className="text-gray-400">Quantity</span>
-                <p className="font-medium">{brand.quantity}</p>
-              </div>
-              <div className="bg-gray-900/50 p-3 rounded-lg">
-                <span className="text-gray-400">Price</span>
-                <p className="font-medium">${brand.price}</p>
-              </div>
-              <div className="bg-gray-900/50 p-3 rounded-lg">
-                <span className="text-gray-400">Manufacturer</span>
-                <p className="font-medium">{brand.company}</p>
+            <div className="max-w-4xl mx-auto">
+              <div className="p-4 bg-red-900/50 rounded-xl flex items-center backdrop-blur-sm">
+                <FiAlertCircle className="text-red-400 mr-3" />
+                <p className="text-red-400">{error}</p>
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {generics.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="mb-12"
-          >
-            <h3 className="text-2xl font-bold mb-6 text-center">Generic Alternatives</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {generics.map((g, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1 }}
-                  whileHover={{ y: -5 }}
-                  className="bg-gray-800/50 p-6 rounded-xl border border-gray-700"
-                >
-                  <h4 className="text-xl font-bold mb-3">{g.name}</h4>
-                  <p className="text-gray-300 mb-4">{g.description}</p>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Dosage</span>
-                      <span className="font-medium">{g.dosage}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Quantity</span>
-                      <span className="font-medium">{g.quantity}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Price</span>
-                      <span className="font-medium">${g.price}</span>
-                    </div>
-                    {g.retailer?.name && (
-                      <div className="mt-4">
-                        <a
-                          href={g.retailer.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center text-blue-400 hover:text-blue-300"
-                        >
-                          <span>{g.retailer.name}</span>
-                          <FiExternalLink className="ml-2" />
-                        </a>
-                      </div>
-                    )}
+      {/* Results container */}
+      <div className="pt-32 relative z-30">
+        <AnimatePresence>
+          {brand && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="max-w-4xl mx-auto px-4 mb-8"
+            >
+              <div className="p-6 bg-gray-800/80 backdrop-blur-sm rounded-xl">
+                <h2 className="text-2xl font-bold mb-4">{brand.name}</h2>
+                <p className="text-gray-300 mb-4">{brand.description}</p>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="bg-gray-900/50 p-3 rounded-lg">
+                    <span className="text-gray-400">Dosage</span>
+                    <p className="font-medium">{brand.dosage}</p>
                   </div>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                  <div className="bg-gray-900/50 p-3 rounded-lg">
+                    <span className="text-gray-400">Quantity</span>
+                    <p className="font-medium">{brand.quantity}</p>
+                  </div>
+                  <div className="bg-gray-900/50 p-3 rounded-lg">
+                    <span className="text-gray-400">Price</span>
+                    <p className="font-medium">${brand.price}</p>
+                  </div>
+                  <div className="bg-gray-900/50 p-3 rounded-lg">
+                    <span className="text-gray-400">Manufacturer</span>
+                    <p className="font-medium">{brand.company}</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {generics.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="max-w-4xl mx-auto px-4"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {generics.map((g, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    className="bg-gray-800/80 backdrop-blur-sm p-6 rounded-xl"
+                  >
+                    <h4 className="text-xl font-bold mb-3">{g.name}</h4>
+                    <p className="text-gray-300 mb-4">{g.description}</p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Dosage</span>
+                        <span className="font-medium">{g.dosage}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Quantity</span>
+                        <span className="font-medium">{g.quantity}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Price</span>
+                        <span className="font-medium">${g.price}</span>
+                      </div>
+                      {g.retailer?.name && (
+                        <div className="mt-4">
+                          <a
+                            href={g.retailer.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center text-blue-400 hover:text-blue-300"
+                          >
+                            <span>{g.retailer.name}</span>
+                            <FiExternalLink className="ml-2" />
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
