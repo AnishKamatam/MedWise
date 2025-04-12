@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiSearch, FiLoader, FiAlertCircle, FiExternalLink } from "react-icons/fi";
+import Preferences from "../components/Preferences";
 
 interface DrugCard {
   name: string;
@@ -20,6 +21,8 @@ export default function DrugSearch() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<DrugCard[]>([]);
+  const [favorites, setFavorites] = useState<DrugCard[]>([]);
+  const [alerts, setAlerts] = useState<{ [key: string]: number }>({});
 
   const fetchDrugInfo = async () => {
     if (!query.trim()) return;
@@ -70,8 +73,28 @@ export default function DrugSearch() {
 
   const hasResults = brand || generics.length > 0;
 
+  const handleAddFavorite = (drug: DrugCard) => {
+    setFavorites(prev => [...prev, drug]);
+  };
+
+  const handleRemoveFavorite = (drugName: string) => {
+    setFavorites(prev => prev.filter(drug => drug.name !== drugName));
+  };
+
+  const handleSetAlert = (drugName: string, targetPrice: number) => {
+    setAlerts(prev => ({ ...prev, [drugName]: targetPrice }));
+  };
+
+  const handleRemoveAlert = (drugName: string) => {
+    setAlerts(prev => {
+      const newAlerts = { ...prev };
+      delete newAlerts[drugName];
+      return newAlerts;
+    });
+  };
+
   return (
-    <div className="min-h-screen relative overflow-hidden">
+    <div className="min-h-screen bg-gray-900 text-white relative overflow-hidden">
       {/* Search bar container - moved to top of DOM */}
       <div className="fixed top-0 left-0 w-full z-50">
         <motion.div
@@ -103,6 +126,7 @@ export default function DrugSearch() {
         transition={{ duration: 1 }}
         style={{ zIndex: 0 }}
       >
+        {/* Main gradient background */}
         <motion.div
           className="absolute top-0 left-0 w-full h-full"
           initial={{ backgroundPosition: "0% 0%" }}
@@ -114,10 +138,12 @@ export default function DrugSearch() {
             ease: "linear"
           }}
           style={{
-            backgroundImage: "radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 50%)",
+            backgroundImage: "radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 50%)",
             backgroundSize: "200% 200%"
           }}
         />
+        
+        {/* Secondary gradient overlay */}
         <motion.div
           className="absolute top-0 left-0 w-full h-full"
           initial={{ opacity: 0.5 }}
@@ -129,8 +155,45 @@ export default function DrugSearch() {
             ease: "easeInOut"
           }}
           style={{
-            backgroundImage: "radial-gradient(circle at 30% 30%, rgba(139, 92, 246, 0.1) 0%, transparent 50%)",
+            backgroundImage: "radial-gradient(circle at 30% 30%, rgba(139, 92, 246, 0.15) 0%, transparent 50%)",
             backgroundSize: "200% 200%"
+          }}
+        />
+
+        {/* Particle effect layer */}
+        <div className="absolute inset-0 overflow-hidden">
+          {[...Array(20)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-1 h-1 bg-blue-400/20 rounded-full"
+              initial={{
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+                scale: Math.random() * 0.5 + 0.5
+              }}
+              animate={{
+                y: [null, Math.random() * window.innerHeight],
+                opacity: [0.2, 0.8, 0.2]
+              }}
+              transition={{
+                duration: Math.random() * 10 + 10,
+                repeat: Infinity,
+                ease: "linear",
+                delay: Math.random() * 5
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Subtle grid overlay */}
+        <div 
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: `
+              linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px)
+            `,
+            backgroundSize: '50px 50px'
           }}
         />
       </motion.div>
@@ -153,6 +216,15 @@ export default function DrugSearch() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Preferences */}
+      <Preferences
+        currentDrug={brand}
+        onAddFavorite={handleAddFavorite}
+        onRemoveFavorite={handleRemoveFavorite}
+        onSetAlert={handleSetAlert}
+        onRemoveAlert={handleRemoveAlert}
+      />
 
       {/* Results container */}
       <div className="pt-32 relative z-30">
