@@ -1,6 +1,9 @@
-langchain==0.3.23
-langchain-community==0.3.21
-langchain-neo4j==0.4.0
-langchain-ollama==0.2.1
-neo4j==5.27.0
+flask==3.0.2
+flask-cors==4.0.0
 python-dotenv==1.0.1
+neo4j==5.17.0
+requests==2.31.0
+transformers==4.38.2
+torch==2.2.1
+aiohttp==3.9.3
+gunicorn==21.2.0
