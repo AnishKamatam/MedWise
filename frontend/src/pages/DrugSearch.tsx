@@ -22,7 +22,6 @@ export default function DrugSearch() {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<DrugCard[]>([]);
   const [favorites, setFavorites] = useState<DrugCard[]>([]);
-  const [alerts, setAlerts] = useState<{ [key: string]: number }>({});
 
   const fetchDrugInfo = async () => {
     if (!query.trim()) return;
@@ -81,16 +80,9 @@ export default function DrugSearch() {
     setFavorites(prev => prev.filter(drug => drug.name !== drugName));
   };
 
-  const handleSetAlert = (drugName: string, targetPrice: number) => {
-    setAlerts(prev => ({ ...prev, [drugName]: targetPrice }));
-  };
-
-  const handleRemoveAlert = (drugName: string) => {
-    setAlerts(prev => {
-      const newAlerts = { ...prev };
-      delete newAlerts[drugName];
-      return newAlerts;
-    });
+  const handleSelectDrug = async (drug: DrugCard) => {
+    setQuery(drug.name);
+    await fetchDrugInfo();
   };
 
   return (
@@ -222,8 +214,7 @@ export default function DrugSearch() {
         currentDrug={brand}
         onAddFavorite={handleAddFavorite}
         onRemoveFavorite={handleRemoveFavorite}
-        onSetAlert={handleSetAlert}
-        onRemoveAlert={handleRemoveAlert}
+        onSelectDrug={handleSelectDrug}
       />
 
       {/* Results container */}
@@ -320,7 +311,8 @@ export default function DrugSearch() {
           {/* History sidebar - only show after first search */}
           {history.length > 0 && (
             <div className="w-80">
-              <div className="sticky top-32">
+              <div className="sticky top-32 space-y-6">
+                {/* Recent Searches Card */}
                 <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-6">
                   <h3 className="text-xl font-bold mb-4">Recent Searches</h3>
                   <div className="space-y-4">
@@ -335,6 +327,57 @@ export default function DrugSearch() {
                       >
                         <h4 className="font-medium mb-1">{item.name}</h4>
                         <p className="text-sm text-gray-400">${item.price}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Favorites Card */}
+                <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold">Favorites</h3>
+                    {brand && !favorites.some(fav => fav.name === brand.name) && (
+                      <button
+                        onClick={() => handleAddFavorite(brand)}
+                        className="p-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors text-sm"
+                      >
+                        Add Current
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-4">
+                    {favorites.map((drug) => (
+                      <div
+                        key={drug.name}
+                        className="flex items-center justify-between p-4 bg-gray-900/50 rounded-lg cursor-pointer hover:bg-gray-900/70 transition-colors"
+                        onClick={() => handleSelectDrug(drug)}
+                      >
+                        <div>
+                          <h4 className="font-medium mb-1">{drug.name}</h4>
+                          <p className="text-sm text-gray-400">${drug.price}</p>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveFavorite(drug.name);
+                          }}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-4 w-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        </button>
                       </div>
                     ))}
                   </div>
