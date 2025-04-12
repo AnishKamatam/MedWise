@@ -1,0 +1,6 @@
+langchain==0.3.23
+langchain-community==0.3.21
+langchain-neo4j==0.4.0
+langchain-ollama==0.2.1
+neo4j==5.27.0
+python-dotenv==1.0.1
