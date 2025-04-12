@@ -10,6 +10,7 @@ interface DrugCard {
   description: string;
   source: string;
   retailer?: { name: string; url: string };
+  company: string;
 }
 
 export default function DrugSearch() {
@@ -18,6 +19,7 @@ export default function DrugSearch() {
   const [generics, setGenerics] = useState<DrugCard[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [history, setHistory] = useState<DrugCard[]>([]);
 
   const fetchDrugInfo = async () => {
     if (!query.trim()) return;
@@ -26,7 +28,13 @@ export default function DrugSearch() {
     setBrand(null);
     setGenerics([]);
     try {
-      const res = await fetch(`http://localhost:5001/drug-info?name=${query}`);
+      // Capitalize first letter of each word in the query
+      const formattedQuery = query
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+      
+      const res = await fetch(`http://localhost:5001/drug-info?name=${formattedQuery}`);
       const data = await res.json();
       if (data.error) {
         setError(data.error);
@@ -36,6 +44,17 @@ export default function DrugSearch() {
       setBrand(data.brand);
       setGenerics(data.generics);
       setError("");
+      
+      // Add to history, removing oldest if at limit
+      if (data.brand && !history.some(item => item.name === data.brand.name)) {
+        setHistory(prev => {
+          const newHistory = [data.brand, ...prev];
+          if (newHistory.length > 3) {
+            newHistory.pop(); // Remove oldest item
+          }
+          return newHistory;
+        });
+      }
     } catch (err) {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -63,7 +82,7 @@ export default function DrugSearch() {
           <div className="max-w-4xl mx-auto">
             <div className="relative">
               <input
-                className="w-full p-4 pl-12 rounded-xl bg-gray-800/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500/20 transition-all"
+                className="w-full p-4 pl-12 pr-4 rounded-xl bg-gray-800/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500/20 transition-all"
                 type="text"
                 placeholder="Enter a brand drug (e.g. Dramamine)"
                 value={query}
@@ -71,15 +90,6 @@ export default function DrugSearch() {
                 onKeyPress={handleKeyPress}
               />
               <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={fetchDrugInfo}
-                disabled={loading}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg transition-colors"
-              >
-                {loading ? <FiLoader className="animate-spin" /> : "Search"}
-              </motion.button>
             </div>
           </div>
         </motion.div>
@@ -146,92 +156,121 @@ export default function DrugSearch() {
 
       {/* Results container */}
       <div className="pt-32 relative z-30">
-        <AnimatePresence>
-          {brand && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="max-w-4xl mx-auto px-4 mb-8"
-            >
-              <div className="p-6 bg-gray-800/80 backdrop-blur-sm rounded-xl">
-                <h2 className="text-2xl font-bold mb-4">{brand.name}</h2>
-                <p className="text-gray-300 mb-4">{brand.description}</p>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="bg-gray-900/50 p-3 rounded-lg">
-                    <span className="text-gray-400">Dosage</span>
-                    <p className="font-medium">{brand.dosage}</p>
+        <div className="max-w-7xl mx-auto px-4 flex gap-8">
+          <div className="flex-1">
+            <AnimatePresence>
+              {brand && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="mb-8"
+                >
+                  <div className="p-6 bg-gray-800/80 backdrop-blur-sm rounded-xl">
+                    <h2 className="text-2xl font-bold mb-4">{brand.name}</h2>
+                    <p className="text-gray-300 mb-4">{brand.description}</p>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="bg-gray-900/50 p-3 rounded-lg">
+                        <span className="text-gray-400">Dosage</span>
+                        <p className="font-medium">{brand.dosage}</p>
+                      </div>
+                      <div className="bg-gray-900/50 p-3 rounded-lg">
+                        <span className="text-gray-400">Quantity</span>
+                        <p className="font-medium">{brand.quantity}</p>
+                      </div>
+                      <div className="bg-gray-900/50 p-3 rounded-lg">
+                        <span className="text-gray-400">Price</span>
+                        <p className="font-medium">${brand.price}</p>
+                      </div>
+                      <div className="bg-gray-900/50 p-3 rounded-lg">
+                        <span className="text-gray-400">Manufacturer</span>
+                        <p className="font-medium">{brand.company}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="bg-gray-900/50 p-3 rounded-lg">
-                    <span className="text-gray-400">Quantity</span>
-                    <p className="font-medium">{brand.quantity}</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+              {generics.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {generics.map((g, idx) => (
+                      <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.1 }}
+                        className="bg-gray-800/80 backdrop-blur-sm p-6 rounded-xl"
+                      >
+                        <h4 className="text-xl font-bold mb-3">{g.name}</h4>
+                        <p className="text-gray-300 mb-4">{g.description}</p>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Dosage</span>
+                            <span className="font-medium">{g.dosage}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Quantity</span>
+                            <span className="font-medium">{g.quantity}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Price</span>
+                            <span className="font-medium">${g.price}</span>
+                          </div>
+                          {g.retailer?.name && (
+                            <div className="mt-4">
+                              <a
+                                href={g.retailer.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center text-blue-400 hover:text-blue-300"
+                              >
+                                <span>{g.retailer.name}</span>
+                                <FiExternalLink className="ml-2" />
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    ))}
                   </div>
-                  <div className="bg-gray-900/50 p-3 rounded-lg">
-                    <span className="text-gray-400">Price</span>
-                    <p className="font-medium">${brand.price}</p>
-                  </div>
-                  <div className="bg-gray-900/50 p-3 rounded-lg">
-                    <span className="text-gray-400">Manufacturer</span>
-                    <p className="font-medium">{brand.company}</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* History sidebar - only show after first search */}
+          {history.length > 0 && (
+            <div className="w-80">
+              <div className="sticky top-32">
+                <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-6">
+                  <h3 className="text-xl font-bold mb-4">Recent Searches</h3>
+                  <div className="space-y-4">
+                    {history.slice(0, 3).map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-gray-900/50 p-4 rounded-lg cursor-pointer hover:bg-gray-900/70 transition-colors"
+                        onClick={() => {
+                          setQuery(item.name);
+                          fetchDrugInfo();
+                        }}
+                      >
+                        <h4 className="font-medium mb-1">{item.name}</h4>
+                        <p className="text-sm text-gray-400">${item.price}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {generics.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="max-w-4xl mx-auto px-4"
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {generics.map((g, idx) => (
-                  <motion.div
-                    key={idx}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                    className="bg-gray-800/80 backdrop-blur-sm p-6 rounded-xl"
-                  >
-                    <h4 className="text-xl font-bold mb-3">{g.name}</h4>
-                    <p className="text-gray-300 mb-4">{g.description}</p>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Dosage</span>
-                        <span className="font-medium">{g.dosage}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Quantity</span>
-                        <span className="font-medium">{g.quantity}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Price</span>
-                        <span className="font-medium">${g.price}</span>
-                      </div>
-                      {g.retailer?.name && (
-                        <div className="mt-4">
-                          <a
-                            href={g.retailer.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex items-center text-blue-400 hover:text-blue-300"
-                          >
-                            <span>{g.retailer.name}</span>
-                            <FiExternalLink className="ml-2" />
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        </div>
       </div>
     </div>
   );
