@@ -5,8 +5,6 @@ import os
 from neo4j import GraphDatabase
 import requests
 import logging
-import asyncio
-import aiohttp
 from functools import lru_cache
 
 # Configure logging
@@ -20,8 +18,9 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 # Initialize Neo4j connection
 try:
     driver = GraphDatabase.driver(
-        os.getenv("NEO4J_URI"),
-        auth=(os.getenv("NEO4J_USER"), os.getenv("NEO4J_PASSWORD"))
+        os.getenv("NEO4J_URI", "bolt://localhost:7687"),
+        auth=(os.getenv("NEO4J_USER", "neo4j"), os.getenv("NEO4J_PASSWORD", "password")),
+        max_connection_lifetime=30
     )
     logger.info("Neo4j connection initialized successfully")
 except Exception as e:
@@ -83,11 +82,10 @@ def get_drug_info_from_neo4j(drug_name: str):
         logger.error(f"Error in get_drug_info_from_neo4j: {str(e)}")
         return None
 
-async def query_huggingface_async(payload):
+def query_huggingface(payload):
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(API_URL, headers=headers, json=payload) as response:
-                return await response.json()
+        response = requests.post(API_URL, headers=headers, json=payload)
+        return response.json()
     except Exception as e:
         logger.error(f"Error querying Hugging Face API: {str(e)}")
         return None
@@ -97,7 +95,7 @@ def health_check():
     return jsonify({"status": "healthy"})
 
 @app.route("/drug-info")
-async def drug_info():
+def drug_info():
     drug_name = request.args.get("name")
     if not drug_name:
         return jsonify({"error": "Missing 'name' query parameter"}), 400
@@ -108,14 +106,14 @@ async def drug_info():
         if not structured_data:
             return jsonify({"error": "Drug not found"}), 404
 
-        # Get additional information from Hugging Face asynchronously
+        # Get additional information from Hugging Face
         prompt = f"""<s>[INST] You are a medical expert. Provide a brief summary about the drug {drug_name}, including:
         1. Main uses
         2. Key side effects
         3. Important precautions
         Keep the response concise. [/INST]"""
         
-        huggingface_response = await query_huggingface_async({"inputs": prompt})
+        huggingface_response = query_huggingface({"inputs": prompt})
         
         if huggingface_response and not isinstance(huggingface_response, dict):
             structured_data["ai_insights"] = huggingface_response[0]["generated_text"]
@@ -128,6 +126,6 @@ async def drug_info():
         return jsonify({"error": "Internal server error"}), 500
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 5001))
+    port = int(os.getenv("PORT", 5002))
     app.run(host="0.0.0.0", port=port)
 
