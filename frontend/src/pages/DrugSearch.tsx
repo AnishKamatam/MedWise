@@ -12,6 +12,7 @@ interface DrugCard {
   source: string;
   retailer?: { name: string; url: string };
   company: string;
+  conditions?: string[];
 }
 
 export default function DrugSearch() {
@@ -30,13 +31,12 @@ export default function DrugSearch() {
     setBrand(null);
     setGenerics([]);
     try {
-      // Capitalize first letter of each word in the query
       const formattedQuery = query
         .split(' ')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
         .join(' ');
       
-      const res = await fetch(`http://localhost:5001/drug-info?name=${formattedQuery}`);
+      const res = await fetch(`http://localhost:5002/drug-info?name=${formattedQuery}`);
       const data = await res.json();
       if (data.error) {
         setError(data.error);
@@ -47,7 +47,6 @@ export default function DrugSearch() {
       setGenerics(data.generics);
       setError("");
       
-      // Add to history, removing oldest if at limit
       if (data.brand && !history.some(item => item.name === data.brand.name)) {
         setHistory(prev => {
           const newHistory = [data.brand, ...prev];
@@ -87,112 +86,22 @@ export default function DrugSearch() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white relative overflow-hidden">
-      {/* Search bar container - moved to top of DOM */}
-      <div className="fixed top-0 left-0 w-full z-50">
-        <motion.div
-          initial={{ y: 0 }}
-          animate={{ y: 0 }}
-          className="px-4 py-4 bg-gray-900/50 backdrop-blur-sm"
-        >
-          <div className="max-w-4xl mx-auto">
-            <div className="relative">
-              <input
-                className="w-full p-4 pl-12 pr-4 rounded-xl bg-gray-800/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500/20 transition-all"
-                type="text"
-                placeholder="Enter a brand drug (e.g. Dramamine)"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyPress={handleKeyPress}
-              />
-              <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* Animated background elements */}
-      <motion.div
-        className="absolute inset-0 bg-gradient-to-b from-gray-900 to-black"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1 }}
-        style={{ zIndex: 0 }}
-      >
-        {/* Main gradient background */}
-        <motion.div
-          className="absolute top-0 left-0 w-full h-full"
-          initial={{ backgroundPosition: "0% 0%" }}
-          animate={{ backgroundPosition: "100% 100%" }}
-          transition={{
-            duration: 20,
-            repeat: Infinity,
-            repeatType: "reverse",
-            ease: "linear"
-          }}
-          style={{
-            backgroundImage: "radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 50%)",
-            backgroundSize: "200% 200%"
-          }}
-        />
-        
-        {/* Secondary gradient overlay */}
-        <motion.div
-          className="absolute top-0 left-0 w-full h-full"
-          initial={{ opacity: 0.5 }}
-          animate={{ opacity: 0.8 }}
-          transition={{
-            duration: 3,
-            repeat: Infinity,
-            repeatType: "reverse",
-            ease: "easeInOut"
-          }}
-          style={{
-            backgroundImage: "radial-gradient(circle at 30% 30%, rgba(139, 92, 246, 0.15) 0%, transparent 50%)",
-            backgroundSize: "200% 200%"
-          }}
-        />
-
-        {/* Particle effect layer */}
-        <div className="absolute inset-0 overflow-hidden">
-          {[...Array(20)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-1 h-1 bg-blue-400/20 rounded-full"
-              initial={{
-                x: Math.random() * window.innerWidth,
-                y: Math.random() * window.innerHeight,
-                scale: Math.random() * 0.5 + 0.5
-              }}
-              animate={{
-                y: [null, Math.random() * window.innerHeight],
-                opacity: [0.2, 0.8, 0.2]
-              }}
-              transition={{
-                duration: Math.random() * 10 + 10,
-                repeat: Infinity,
-                ease: "linear",
-                delay: Math.random() * 5
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Subtle grid overlay */}
-        <div 
-          className="absolute inset-0 opacity-10"
-          style={{
-            backgroundImage: `
-              linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px),
-              linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px)
-            `,
-            backgroundSize: '50px 50px'
-          }}
-        />
-      </motion.div>
-
-      {/* Error message */}
       <AnimatePresence>
-        {error && (
+        {loading ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="fixed top-24 left-0 w-full px-4 z-40"
+          >
+            <div className="max-w-4xl mx-auto">
+              <div className="p-4 bg-blue-900/50 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                <FiLoader className="text-blue-400 w-6 h-6 loading-spinner mr-3" />
+                <p className="text-blue-400">Searching for drug information...</p>
+              </div>
+            </div>
+          </motion.div>
+        ) : error && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -209,7 +118,6 @@ export default function DrugSearch() {
         )}
       </AnimatePresence>
 
-      {/* Preferences */}
       <Preferences
         currentDrug={brand}
         onAddFavorite={handleAddFavorite}
@@ -217,7 +125,6 @@ export default function DrugSearch() {
         onSelectDrug={handleSelectDrug}
       />
 
-      {/* Results container */}
       <div className="pt-32 relative z-30">
         <div className="max-w-7xl mx-auto px-4 flex gap-8">
           <div className="flex-1">
@@ -231,23 +138,21 @@ export default function DrugSearch() {
                 >
                   <div className="p-6 bg-gray-800/80 backdrop-blur-sm rounded-xl">
                     <h2 className="text-2xl font-bold mb-4">{brand.name}</h2>
-                    <p className="text-gray-300 mb-4">{brand.description}</p>
+                    {brand.conditions && brand.conditions.length > 0 && (
+                      <p className="text-gray-300 mb-4">Used to treat: {brand.conditions.join(", ")}</p>
+                    )}
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="bg-gray-900/50 p-3 rounded-lg">
-                        <span className="text-gray-400">Dosage</span>
-                        <p className="font-medium">{brand.dosage}</p>
+                        <span className="text-gray-400">Price</span>
+                        <p className="font-medium">${brand.price?.toFixed(2) || 'N/A'}</p>
                       </div>
                       <div className="bg-gray-900/50 p-3 rounded-lg">
                         <span className="text-gray-400">Quantity</span>
-                        <p className="font-medium">{brand.quantity}</p>
-                      </div>
-                      <div className="bg-gray-900/50 p-3 rounded-lg">
-                        <span className="text-gray-400">Price</span>
-                        <p className="font-medium">${brand.price}</p>
+                        <p className="font-medium">{brand.quantity || 'N/A'}</p>
                       </div>
                       <div className="bg-gray-900/50 p-3 rounded-lg">
                         <span className="text-gray-400">Manufacturer</span>
-                        <p className="font-medium">{brand.company}</p>
+                        <p className="font-medium">{brand.company || 'N/A'}</p>
                       </div>
                     </div>
                   </div>
@@ -272,33 +177,22 @@ export default function DrugSearch() {
                         className="bg-gray-800/80 backdrop-blur-sm p-6 rounded-xl"
                       >
                         <h4 className="text-xl font-bold mb-3">{g.name}</h4>
-                        <p className="text-gray-300 mb-4">{g.description}</p>
+                        {g.description && (
+                          <p className="text-gray-300 mb-4">{g.description}</p>
+                        )}
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Dosage</span>
-                            <span className="font-medium">{g.dosage}</span>
+                            <span className="text-gray-400">Price</span>
+                            <span className="font-medium">${g.price?.toFixed(2) || 'N/A'}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-400">Quantity</span>
-                            <span className="font-medium">{g.quantity}</span>
+                            <span className="font-medium">{g.quantity || 'N/A'}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Price</span>
-                            <span className="font-medium">${g.price}</span>
+                            <span className="text-gray-400">Manufacturer</span>
+                            <span className="font-medium">{g.manufacturer || 'N/A'}</span>
                           </div>
-                          {g.retailer?.name && (
-                            <div className="mt-4">
-                              <a
-                                href={g.retailer.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="flex items-center text-blue-400 hover:text-blue-300"
-                              >
-                                <span>{g.retailer.name}</span>
-                                <FiExternalLink className="ml-2" />
-                              </a>
-                            </div>
-                          )}
                         </div>
                       </motion.div>
                     ))}
@@ -308,11 +202,9 @@ export default function DrugSearch() {
             </AnimatePresence>
           </div>
 
-          {/* History sidebar - only show after first search */}
           {history.length > 0 && (
             <div className="w-80">
               <div className="sticky top-32 space-y-6">
-                {/* Recent Searches Card */}
                 <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-6">
                   <h3 className="text-xl font-bold mb-4">Recent Searches</h3>
                   <div className="space-y-4">
@@ -332,7 +224,6 @@ export default function DrugSearch() {
                   </div>
                 </div>
 
-                {/* Favorites Card */}
                 <div className="bg-gray-800/80 backdrop-blur-sm rounded-xl p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-xl font-bold">Favorites</h3>
@@ -387,6 +278,110 @@ export default function DrugSearch() {
           )}
         </div>
       </div>
+
+      <div className="fixed top-0 left-0 w-full z-50">
+        <motion.div
+          initial={{ y: 0 }}
+          animate={{ y: 0 }}
+          className="px-4 py-4 bg-gray-900/50 backdrop-blur-sm"
+        >
+          <div className="max-w-4xl mx-auto">
+            <div className="relative">
+              <input
+                className={`w-full p-4 pl-12 pr-4 rounded-xl bg-gray-800/80 backdrop-blur-sm focus:ring-2 focus:ring-blue-500/20 transition-all ${
+                  loading ? 'opacity-50' : ''
+                }`}
+                type="text"
+                placeholder="Enter a brand drug (e.g. Dramamine)"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyPress={handleKeyPress}
+                disabled={loading}
+              />
+              {loading ? (
+                <FiLoader className="absolute left-4 top-1/2 transform -translate-y-1/2 text-blue-400 w-5 h-5 loading-spinner" />
+              ) : (
+                <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              )}
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      <motion.div
+        className="absolute inset-0 bg-gradient-to-b from-gray-900 to-black"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1 }}
+        style={{ zIndex: 0 }}
+      >
+        <motion.div
+          className="absolute top-0 left-0 w-full h-full"
+          initial={{ backgroundPosition: "0% 0%" }}
+          animate={{ backgroundPosition: "100% 100%" }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            repeatType: "reverse",
+            ease: "linear"
+          }}
+          style={{
+            backgroundImage: "radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 50%)",
+            backgroundSize: "200% 200%"
+          }}
+        />
+        
+        <motion.div
+          className="absolute top-0 left-0 w-full h-full"
+          initial={{ opacity: 0.5 }}
+          animate={{ opacity: 0.8 }}
+          transition={{
+            duration: 3,
+            repeat: Infinity,
+            repeatType: "reverse",
+            ease: "easeInOut"
+          }}
+          style={{
+            backgroundImage: "radial-gradient(circle at 30% 30%, rgba(139, 92, 246, 0.15) 0%, transparent 50%)",
+            backgroundSize: "200% 200%"
+          }}
+        />
+
+        <div className="absolute inset-0 overflow-hidden">
+          {[...Array(20)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-1 h-1 bg-blue-400/20 rounded-full"
+              initial={{
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+                scale: Math.random() * 0.5 + 0.5
+              }}
+              animate={{
+                y: [null, Math.random() * window.innerHeight],
+                opacity: [0.2, 0.8, 0.2]
+              }}
+              transition={{
+                duration: Math.random() * 10 + 10,
+                repeat: Infinity,
+                ease: "linear",
+                delay: Math.random() * 5
+              }}
+            />
+          ))}
+        </div>
+
+        <div 
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: `
+              linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px)
+            `,
+            backgroundSize: '50px 50px'
+          }}
+        />
+      </motion.div>
     </div>
   );
 }

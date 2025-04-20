@@ -33,53 +33,68 @@ headers = {"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_KEY')}"}
 @lru_cache(maxsize=100)
 def get_drug_info_from_neo4j(drug_name: str):
     try:
+        logger.info(f"Attempting to fetch drug info for: {drug_name}")
         query = f"""
         MATCH (b:BrandDrug {{name: "{drug_name}"}})
-        OPTIONAL MATCH (b)-[:OWNED_BY]->(c:Company)
-        OPTIONAL MATCH (b)-[:HAS_GENERIC]->(g:GenericDrug)
-        OPTIONAL MATCH (g)-[:AVAILABLE_AT]->(r:Retailer)
-        WITH b, c, g, r
-        ORDER BY g.price ASC
+        OPTIONAL MATCH (b)-[:MANUFACTURED_BY]->(m:Manufacturer)
+        OPTIONAL MATCH (b)-[:HAS_PRICE]->(p:Price)
+        OPTIONAL MATCH (b)-[:TREATS]->(c:Condition)
+        OPTIONAL MATCH (b)-[:HAS_GENERIC_ALTERNATIVE]->(g:GenericDrug)
+        OPTIONAL MATCH (g)-[:MANUFACTURED_BY]->(gm:Manufacturer)
+        OPTIONAL MATCH (g)-[:HAS_PRICE]->(gp:Price)
+        WITH b, m, p, COLLECT(DISTINCT c.name) as conditions,
+             COLLECT(DISTINCT {{
+                name: g.name,
+                price: gp.amount,
+                quantity: gp.quantity,
+                manufacturer: gm.name,
+                description: g.description
+             }}) as generics
         RETURN 
             b.name AS brand,
-            b.price AS brandPrice,
-            b.quantity AS brandQuantity,
-            b.dosage AS brandDosage,
-            b.description AS brandDescription,
-            c.name AS company,
-            COLLECT(DISTINCT {{
-                name: g.name,
-                price: g.price,
-                quantity: g.quantity,
-                dosage: g.dosage,
-                description: g.description,
-                retailer: {{
-                    name: r.name,
-                    url: r.url
-                }}
-            }})[0..3] AS generics
+            p.amount AS brandPrice,
+            p.quantity AS brandQuantity,
+            m.name AS manufacturer,
+            conditions as conditions,
+            generics as generics
         LIMIT 1
         """
         
+        logger.info(f"Executing Neo4j query: {query}")
+        
         with driver.session() as session:
             results = session.run(query)
-            if not results:
-                return None
-
             result = results.single()
-            return {
+            
+            if result is None:
+                logger.warning(f"No results found for drug: {drug_name}")
+                return None
+                
+            logger.info("Raw Neo4j result:")
+            logger.info(f"Brand Name: {result.get('brand')}")
+            logger.info(f"Price: {result.get('brandPrice')}")
+            logger.info(f"Quantity: {result.get('brandQuantity')}")
+            logger.info(f"Manufacturer: {result.get('manufacturer')}")
+            logger.info(f"Conditions: {result.get('conditions')}")
+            
+            response_data = {
                 "brand": {
-                    "name": result["brand"],
-                    "price": result["brandPrice"],
-                    "quantity": result["brandQuantity"],
-                    "dosage": result["brandDosage"],
-                    "description": result["brandDescription"],
-                    "company": result["company"]
+                    "name": result.get("brand"),
+                    "price": result.get("brandPrice"),
+                    "quantity": result.get("brandQuantity"),
+                    "company": result.get("manufacturer"),
+                    "conditions": result.get("conditions", [])
                 },
-                "generics": result["generics"]
+                "generics": result.get("generics", [])
             }
+            
+            logger.info("Formatted response data:")
+            logger.info(response_data)
+            
+            return response_data
     except Exception as e:
         logger.error(f"Error in get_drug_info_from_neo4j: {str(e)}")
+        logger.error(f"Full error details: {type(e).__name__}: {str(e)}")
         return None
 
 def query_huggingface(payload):
@@ -125,7 +140,49 @@ def drug_info():
         logger.error(f"Error in drug_info endpoint: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
 
+@app.route("/test-neo4j")
+def test_neo4j():
+    try:
+        with driver.session() as session:
+            # Test basic connectivity and get sample of complete drug data
+            query = """
+            MATCH (b:BrandDrug)
+            OPTIONAL MATCH (b)-[:OWNED_BY]->(c:Company)
+            RETURN b, c
+            LIMIT 5
+            """
+            
+            result = session.run(query)
+            sample_drugs = []
+            
+            for record in result:
+                brand_node = record.get("b")
+                company_node = record.get("c")
+                
+                if brand_node:
+                    drug_info = {
+                        "name": brand_node.get("name"),
+                        "price": brand_node.get("price"),
+                        "quantity": brand_node.get("quantity"),
+                        "dosage": brand_node.get("dosage"),
+                        "description": brand_node.get("description"),
+                        "company": company_node.get("name") if company_node else None
+                    }
+                    sample_drugs.append(drug_info)
+            
+            return jsonify({
+                "status": "connected",
+                "total_brand_drugs": len(sample_drugs),
+                "sample_drugs": sample_drugs,
+                "sample_drug_details": "These are complete drug records to verify data structure"
+            })
+    except Exception as e:
+        logger.error(f"Neo4j test failed: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5002))
     app.run(host="0.0.0.0", port=port)
-
